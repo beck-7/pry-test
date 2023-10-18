@@ -53,6 +53,14 @@
   font-size: 16px;
 }
 
+.dropdownItem {
+	cursor: pointer;
+	font-size: 16px;
+	border: 1px solid lightgray;
+	margin-bottom: 4px;
+	list-style-type: none;
+}
+
 .tagCloseIcon {
   display: block;
   width: 14px;

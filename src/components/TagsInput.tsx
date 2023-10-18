@@ -1,26 +1,74 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { nanoid } from 'nanoid'
-import styles from '@/styles/Tags.module.css'
+import { useQuery } from '@tanstack/react-query'
 import { useTagStore } from '@/store'
-
-const regExp = new RegExp(/[0-9()+\-*/.]/)
+import styles from '@/styles/Tags.module.css'
 
 export const TagsInput = () => {
+    const [inputValue, setInputValue] = useState("");
+    const [filteredData, setFilteredData] = useState<ISelectData[]>([]);
+    const [isDropdownOpen, setIsDopDownOpen] = useState(false);
+
     const tags = useTagStore((state) => state.tags)
     const addTag = useTagStore((state) => state.addTag)
     const updateTag = useTagStore((state) => state.updateTag)
     const deleteTag = useTagStore((state) => state.deleteTag)
+    const fetchData = useTagStore((state) => state.fetchData)
+    const selectData = useTagStore((state) => state.selectData)
 
-	const addHandler = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const { isLoading } = useQuery({
+        queryKey: ['data'],
+        queryFn: fetchData,
+      })
+
+    const searchHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target as HTMLInputElement;
-		if (input.value !== '' && regExp.test(input.value)) {
-            const newTag = {
-                id: nanoid(),
-                value: input.value
-            }
-			addTag(newTag);
-			input.value = '';
-		}
+        setInputValue(input.value);
+        
+        if (tags.length !== 0 &&
+          input.value === "+" ||
+          input.value === "-" ||
+          input.value === "*" ||
+          input.value === "/" ||
+          input.value === "(" ||
+          input.value === ")"
+        ) {
+          const newTag = {
+            id: nanoid(),
+            name: input.value,
+            value: input.value,
+          }
+
+          addTag(newTag);
+          setInputValue("");
+        }
+          let filteredItems:ISelectData[];
+    
+          if (!input.value.trim().length) {
+            filteredItems = [...selectData];
+          } else {
+            filteredItems = selectData.filter((item) => {
+              return item.name.toLowerCase().startsWith(input.value.toLowerCase());
+            });
+          }
+    
+          setFilteredData(filteredItems);
+          if (filteredItems.length === 0) {
+            setIsDopDownOpen(false);
+          } else {
+            setIsDopDownOpen(true);
+          }
+      };
+      
+	const addHandler = (item: ISelectData) => {
+        const newTag = {
+            id: item.id,
+            name: item.name,
+            value: item.value.toString()
+        }
+        addTag(newTag);
+        setInputValue('');
+        setFilteredData([])
 	};
 
     const changeHandler = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
@@ -42,13 +90,15 @@ export const TagsInput = () => {
 
     const result = calc();
 
+    if(isLoading) return <div>Loading...</div>
+
 	return (
         <>
             <div className={styles.tagsBlock}>
                 <ul className={styles.tagsList}>
-                    {tags.map((tag, idx) => (
+                    {tags?.map((tag, idx) => (
                         <li key={tag.id} className={styles.tag}>
-                            <input type="text" value={tag.value} className={styles.tagItem} onChange={(e) => changeHandler(e, idx)} />
+                            <input type="text" value={tag.name} className={styles.tagItem} onChange={(e) => changeHandler(e, idx)} />
                             <span className={styles.tagCloseIcon}
                                 onClick={() => deleteTag(tag.id)}
                             >
@@ -58,13 +108,19 @@ export const TagsInput = () => {
                     ))}
                 </ul>
                 <input
-                    step='0.01'
-                    type='text'
+                    value={inputValue}
+                    onChange={searchHandler}
                     placeholder='Press enter'
                     className={styles.tagsInput}
-                    onKeyUp={event => event.key === 'Enter' ? addHandler(event) : null}
-                />
+              />
             </div>
+            {isDropdownOpen && 
+                <ul>
+                    {filteredData?.map((item) => (
+                        <li key={item.id} className={styles.dropdownItem} onClick={()=> addHandler(item)}>{item.name}</li>
+                    ))}
+                </ul>
+            }
             {result !== (null || undefined) && <h1>Result: {result}</h1>}
         </>
 	);
